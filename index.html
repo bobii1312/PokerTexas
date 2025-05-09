@@ -151,7 +151,7 @@
           const foldBtn = createActionButton("Fold", () => playerAction(i, 'fold'));
           const allinBtn = createActionButton("All-in", () => playerAction(i, 'allin'));
 
-          [callRaiseBtn, allinBtn, foldBtn].forEach(btn => actionsDiv.appendChild(btn));
+          [callRaiseBtn, foldBtn, allinBtn].forEach(btn => actionsDiv.appendChild(btn));
           div.appendChild(actionsDiv);
         }
 
