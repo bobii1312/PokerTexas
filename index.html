@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Texas Hold'em - Żetony</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #0b0b0b;
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1, h2 {
+      text-align: center;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+    }
+
+    input, button, select {
+      padding: 10px;
+      margin: 5px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .players {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .player {
+      background: #1e1e1e;
+      padding: 10px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .player-title {
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 10px;
+    }
+
+    .pot-display {
+      text-align: center;
+      font-size: 1.2em;
+      margin: 15px 0;
+    }
+
+    @media (max-width: 600px) {
+      .actions button {
+        flex: 1 1 45%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Texas Hold'em Poker</h1>
+
+    <h2>Dodaj Gracza</h2>
+    <input type="text" id="nameInput" placeholder="Imię gracza" />
+    <input type="number" id="stackInput" placeholder="Liczba żetonów" min="0" />
+    <button onclick="addPlayer()">Dodaj</button>
+
+    <h2>Ustawienia gry</h2>
+    <input type="number" id="smallBlindInput" placeholder="Small Blind (domyślnie 10)" value="10" />
+    <input type="number" id="bigBlindInput" placeholder="Big Blind (domyślnie 20)" value="20" />
+    <button onclick="startHand()">Nowa Ręka</button>
+
+    <div class="pot-display" id="potDisplay">Pula: 0</div>
+
+    <div class="players" id="playersContainer"></div>
+
+    <h2>Showdown</h2>
+    <select id="winnerSelect"></select>
+    <button onclick="endHand()">Zakończ rozdanie</button>
+  </div>
+
+  <script>
+    let players = [];
+    let dealerIndex = -1;
+    let pot = 0;
+    let sb = 10;
+    let bb = 20;
+
+    function addPlayer() {
+      const name = document.getElementById('nameInput').value.trim();
+      const stack = parseInt(document.getElementById('stackInput').value);
+      if (!name || isNaN(stack) || stack <= 0) {
+        alert("Wprowadź poprawne imię i liczbę żetonów.");
+        return;
+      }
+      players.push({ name, stack, currentBet: 0, folded: false });
+      document.getElementById('nameInput').value = "";
+      document.getElementById('stackInput').value = "";
+      renderPlayers();
+    }
+
+    function renderPlayers() {
+      const container = document.getElementById('playersContainer');
+      container.innerHTML = "";
+      const winnerSelect = document.getElementById('winnerSelect');
+      winnerSelect.innerHTML = "";
+
+      players.forEach((player, i) => {
+        const div = document.createElement('div');
+        div.className = 'player';
+
+        let title = `${player.name} - Żetony: ${player.stack}`;
+        if (i === dealerIndex) title += " (Dealer)";
+        if (player.folded) title += " - 🟥 Fold";
+        if (i === (dealerIndex + 1) % players.length) title += " - SB";
+        if (i === (dealerIndex + 2) % players.length) title += " - BB";
+
+        div.innerHTML = `
+          <div class="player-title">${title}</div>
+          <div>Zakład: ${player.currentBet}</div>
+        `;
+
+        if (!player.folded) {
+          const actionsDiv = document.createElement('div');
+          actionsDiv.className = 'actions';
+
+          const checkBtn = createActionButton("Check", () => playerAction(i, 'check'));
+          const callBtn = createActionButton("Call", () => playerAction(i, 'call'));
+          const raiseBtn = createActionButton("Raise", () => {
+            const amount = parseInt(prompt("Ile chcesz podbić?", bb));
+            if (!isNaN(amount)) playerAction(i, 'raise', amount);
+          });
+          const foldBtn = createActionButton("Fold", () => playerAction(i, 'fold'));
+          const allinBtn = createActionButton("All-in", () => playerAction(i, 'allin'));
+
+          [checkBtn, callBtn, raiseBtn, allinBtn, foldBtn].forEach(btn => actionsDiv.appendChild(btn));
+          div.appendChild(actionsDiv);
+        }
+
+        container.appendChild(div);
+
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = player.name;
+        winnerSelect.appendChild(opt);
+      });
+
+      document.getElementById('potDisplay').textContent = `Pula: ${pot}`;
+    }
+
+    function createActionButton(text, handler) {
+      const btn = document.createElement('button');
+      btn.textContent = text;
+      btn.onclick = handler;
+      return btn;
+    }
+
+    function startHand() {
+      if (players.length < 2) {
+        alert("Potrzebujesz co najmniej dwóch graczy.");
+        return;
+      }
+
+      sb = parseInt(document.getElementById('smallBlindInput').value) || 10;
+      bb = parseInt(document.getElementById('bigBlindInput').value) || 20;
+
+      pot = 0;
+      players.forEach(p => {
+        p.currentBet = 0;
+        p.folded = false;
+      });
+
+      dealerIndex = (dealerIndex + 1) % players.length;
+
+      const sbIndex = (dealerIndex + 1) % players.length;
+      const bbIndex = (dealerIndex + 2) % players.length;
+
+      takeBlind(sbIndex, sb);
+      takeBlind(bbIndex, bb);
+
+      renderPlayers();
+    }
+
+    function takeBlind(index, amount) {
+      const player = players[index];
+      const blind = Math.min(amount, player.stack);
+      player.stack -= blind;
+      player.currentBet += blind;
+      pot += blind;
+    }
+
+    function playerAction(index, action, raiseAmount = 0) {
+      const player = players[index];
+      switch(action) {
+        case 'fold':
+          player.folded = true;
+          break;
+        case 'check':
+          break;
+        case 'call':
+          const maxBet = Math.max(...players.map(p => p.currentBet));
+          const diff = maxBet - player.currentBet;
+          const toCall = Math.min(diff, player.stack);
+          player.stack -= toCall;
+          player.currentBet += toCall;
+          pot += toCall;
+          break;
+        case 'raise':
+          const currentMax = Math.max(...players.map(p => p.currentBet));
+          const totalBet = currentMax + raiseAmount;
+          const raiseDiff = totalBet - player.currentBet;
+          if (player.stack < raiseDiff) {
+            alert("Nie masz tylu żetonów.");
+            return;
+          }
+          player.stack -= raiseDiff;
+          player.currentBet = totalBet;
+          pot += raiseDiff;
+          break;
+        case 'allin':
+          pot += player.stack;
+          player.currentBet += player.stack;
+          player.stack = 0;
+          break;
+      }
+      renderPlayers();
+    }
+
+    function endHand() {
+      const winnerIndex = parseInt(document.getElementById('winnerSelect').value);
+      players[winnerIndex].stack += pot;
+      pot = 0;
+      players.forEach(p => p.currentBet = 0);
+      renderPlayers();
+    }
+  </script>
+</body>
+</html>
