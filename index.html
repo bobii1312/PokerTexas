@@ -50,6 +50,10 @@
       justify-content: space-between;
     }
 
+    .active-player {
+      background: #00ff00; /* Zielony dla aktywnego gracza */
+    }
+
     .actions {
       display: flex;
       flex-wrap: wrap;
@@ -68,6 +72,7 @@
         flex: 1 1 45%;
       }
     }
+
   </style>
 </head>
 <body>
@@ -91,6 +96,8 @@
     <h2>Showdown</h2>
     <select id="winnerSelect"></select>
     <button onclick="endHand()">Zakończ rozdanie</button>
+
+    <h3 id="turnInfo">Teraz Twój ruch: </h3>
   </div>
 
   <script>
@@ -99,6 +106,7 @@
     let pot = 0;
     let sb = 10;
     let bb = 20;
+    let currentPlayerIndex = 0; // Indeks gracza, który teraz wykonuje ruch
 
     function addPlayer() {
       const name = document.getElementById('nameInput').value.trim();
@@ -155,6 +163,11 @@
           div.appendChild(actionsDiv);
         }
 
+        // Podświetlenie aktywnego gracza
+        if (i === currentPlayerIndex) {
+          div.classList.add('active-player');
+        }
+
         container.appendChild(div);
 
         const opt = document.createElement('option');
@@ -164,6 +177,7 @@
       });
 
       document.getElementById('potDisplay').textContent = `Pula: ${pot}`;
+      document.getElementById('turnInfo').textContent = `Teraz Twój ruch: ${players[currentPlayerIndex].name}`;
     }
 
     function createActionButton(text, handler) {
@@ -239,6 +253,8 @@
           player.stack = 0;
           break;
       }
+      // Zmieniamy kolejność aktywnego gracza
+      currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
       renderPlayers();
     }
 
