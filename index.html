@@ -138,16 +138,20 @@
           const actionsDiv = document.createElement('div');
           actionsDiv.className = 'actions';
 
-          const checkBtn = createActionButton("Check", () => playerAction(i, 'check'));
-          const callBtn = createActionButton("Call", () => playerAction(i, 'call'));
-          const raiseBtn = createActionButton("Raise", () => {
-            const amount = parseInt(prompt("Ile chcesz podbić?", bb));
-            if (!isNaN(amount)) playerAction(i, 'raise', amount);
+          const callRaiseBtn = createActionButton("Call / Raise", () => {
+            const currentMaxBet = Math.max(...players.map(p => p.currentBet));
+            const raiseAmount = parseInt(prompt(`Aktualny zakład to ${currentMaxBet}, podbij o ile chcesz?`, currentMaxBet));
+            if (!isNaN(raiseAmount) && raiseAmount > 0) {
+              playerAction(i, 'raise', raiseAmount);
+            } else {
+              playerAction(i, 'call');
+            }
           });
+
           const foldBtn = createActionButton("Fold", () => playerAction(i, 'fold'));
           const allinBtn = createActionButton("All-in", () => playerAction(i, 'allin'));
 
-          [checkBtn, callBtn, raiseBtn, allinBtn, foldBtn].forEach(btn => actionsDiv.appendChild(btn));
+          [callRaiseBtn, allinBtn, foldBtn].forEach(btn => actionsDiv.appendChild(btn));
           div.appendChild(actionsDiv);
         }
 
@@ -208,8 +212,6 @@
       switch(action) {
         case 'fold':
           player.folded = true;
-          break;
-        case 'check':
           break;
         case 'call':
           const maxBet = Math.max(...players.map(p => p.currentBet));
